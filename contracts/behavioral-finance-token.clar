@@ -48,3 +48,41 @@
 ;; Get Balance
 (define-read-only (get-balance (owner principal))
   (ok (ft-get-balance behavioral-finance-token owner)))
+  ;; Previous code remains the same until token supply tracking...
+
+;; Admin variable
+(define-data-var admin principal tx-sender)
+
+;; User Goal Structure
+(define-map user-goals
+  { user: principal, goal-id: uint }
+  { goal-type: (string-ascii 50), 
+    target-amount: uint, 
+    progress: uint, 
+    achieved: bool, 
+    deadline: uint })
+
+;; User Goal Counters
+(define-map user-goal-counter
+  { user: principal }
+  { next-id: uint })
+
+;; Set a Financial Goal
+(define-public (set-goal (goal-type (string-ascii 50)) (target-amount uint) (deadline uint))
+  (begin
+    (asserts! (not (is-eq goal-type "")) (err u399))
+    (asserts! (> target-amount u0) (err u400))
+    (asserts! (>= deadline block-height) (err u401))
+    (let ((user-counter (default-to { next-id: u0 } (map-get? user-goal-counter { user: tx-sender })))
+          (goal-id (get next-id user-counter)))
+      (map-set user-goal-counter { user: tx-sender } { next-id: (+ goal-id u1) })
+      (map-set user-goals
+        { user: tx-sender, goal-id: goal-id }
+        { goal-type: goal-type, 
+          target-amount: target-amount, 
+          progress: u0, 
+          achieved: false, 
+          deadline: deadline })
+      (ok { goal-id: goal-id }))))
+
+;; Previous SIP-010 functions remain the same...
