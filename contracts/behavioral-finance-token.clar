@@ -123,4 +123,25 @@
                           (ok true))
                         (ok true)))))
         (err u404))))
+;; Previous code remains...
 
+;; Penalty Rate
+(define-data-var penalty-rate uint u5)
+
+;; Apply Penalty for Missed Deadlines
+(define-public (apply-penalty (goal-id uint))
+  (let ((user-counter (default-to { next-id: u0 } (map-get? user-goal-counter { user: tx-sender }))))
+    (asserts! (< goal-id (get next-id user-counter)) (err u400))
+    (let ((goal (map-get? user-goals { user: tx-sender, goal-id: goal-id })))
+      (match goal 
+        goal-data (let ((deadline (get deadline goal-data))
+                       (achieved (get achieved goal-data)))
+                    (asserts! (not achieved) (err u403))
+                    (asserts! (> block-height deadline) (err u401))
+                    (let ((penalty-amount (var-get penalty-rate)))
+                      (try! (transfer penalty-amount tx-sender (var-get admin) none))
+                      (map-delete user-goals { user: tx-sender, goal-id: goal-id })
+                      (ok { penalty-applied: penalty-amount })))
+        (err u404))))
+
+;; Previous functions remain the same...
