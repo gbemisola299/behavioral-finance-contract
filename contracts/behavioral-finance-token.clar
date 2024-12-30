@@ -85,4 +85,42 @@
           deadline: deadline })
       (ok { goal-id: goal-id }))))
 
-;; Previous SIP-010 functions remain the same...
+;; Previous code remains...
+
+;; Reward Rate
+(define-data-var reward-rate uint u10)
+
+;; Mint Reward Tokens (Private)
+(define-private (mint-reward (user principal))
+  (let ((amount (var-get reward-rate)))
+    (var-set total-supply (+ (var-get total-supply) amount))
+    (ft-mint? behavioral-finance-token amount user)))
+
+;; Update Goal Progress
+(define-public (update-progress (goal-id uint) (amount uint))
+  (let ((user-counter (default-to { next-id: u0 } (map-get? user-goal-counter { user: tx-sender }))))
+    (asserts! (< goal-id (get next-id user-counter)) (err u400))
+    (let ((goal (map-get? user-goals { user: tx-sender, goal-id: goal-id })))
+      (match goal 
+        goal-data (let ((current-progress (get progress goal-data))
+                       (target-amount (get target-amount goal-data))
+                       (deadline (get deadline goal-data)))
+                    (asserts! (> amount u0) (err u401))
+                    (asserts! (<= block-height deadline) (err u402))
+                    (asserts! (not (get achieved goal-data)) (err u403))
+                    (asserts! (<= (+ current-progress amount) target-amount) (err u404))
+                    (let ((new-progress (+ current-progress amount)))
+                      (map-set user-goals
+                        { user: tx-sender, goal-id: goal-id }
+                        { goal-type: (get goal-type goal-data),
+                          target-amount: target-amount,
+                          progress: new-progress,
+                          achieved: (>= new-progress target-amount),
+                          deadline: deadline })
+                      (if (>= new-progress target-amount)
+                        (begin
+                          (try! (mint-reward tx-sender))
+                          (ok true))
+                        (ok true)))))
+        (err u404))))
+
