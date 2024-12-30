@@ -6,7 +6,7 @@ telemetry = true
 requirements = []
 [contracts.behavioral-finance-token]
 path = "contracts/behavioral-finance-token.clar"
-depends_on = []
+depends_on = ["sip-010-trait"]
 
 [repl]
 costs_version = 2
@@ -20,3 +20,7 @@ strict = false
 trusted_sender = false
 trusted_caller = false
 callee_filter = false
+
+[contracts.sip-010-trait]
+path = "contracts/sip-010-trait.clar"
+depends_on = []
